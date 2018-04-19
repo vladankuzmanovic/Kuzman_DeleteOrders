@@ -6,7 +6,7 @@ Magento 2 extension which enables the store admin to delete orders
 Using [composer](https://getcomposer.org/):
 
 ```bash
-composer config repositories.kuzman_deleteorders git https://github.com/vladankuzmanovic/Kuzman_DeleteOrders.git
+composer config repositories.kuzman_deleteorders git https://github.com/vladankuzmanovic/magento2-module-delete-orders.git
 composer require kuzman/module-delete-orders:dev-master
 ```
 
