@@ -14,10 +14,11 @@
  */
 namespace Kuzman\DeleteOrders\Controller\Adminhtml\Order;
 
-use Magento\Framework\Model\ResourceModel\Db\Collection\AbstractCollection;
+use Magento\Framework\Controller\ResultFactory;
 use Magento\Backend\App\Action\Context;
 use Magento\Ui\Component\MassAction\Filter;
 use Magento\Sales\Model\ResourceModel\Order\CollectionFactory;
+use Magento\Sales\Api\OrderRepositoryInterface;
 
 /**
  * Delete orders controller
@@ -25,7 +26,7 @@ use Magento\Sales\Model\ResourceModel\Order\CollectionFactory;
  * Class MassDelete
  * @package Kuzman\DeleteOrders\Controller\Adminhtml\Order
  */
-class MassDelete extends \Magento\Sales\Controller\Adminhtml\Order\AbstractMassAction
+class MassDelete extends \Magento\Backend\App\Action
 {
     /**
      * Authorization level of a basic admin session
@@ -33,47 +34,55 @@ class MassDelete extends \Magento\Sales\Controller\Adminhtml\Order\AbstractMassA
     const ADMIN_RESOURCE = 'Kuzman_DeleteOrders::delete';
 
     /**
+     * @var OrderRepositoryInterface
+     */
+    protected $orderRepository;
+
+    /**
+     * @var \Magento\Ui\Component\MassAction\Filter
+     */
+    protected $filter;
+
+    /**
+     * MassDelete constructor.
+     *
      * @param Context $context
      * @param Filter $filter
      * @param CollectionFactory $collectionFactory
+     * @param OrderRepositoryInterface $orderRepository
      */
-    public function __construct(Context $context, Filter $filter, CollectionFactory $collectionFactory)
+    public function __construct(
+        Context $context,
+        Filter $filter,
+        CollectionFactory $collectionFactory,
+        OrderRepositoryInterface $orderRepository
+    )
     {
-        parent::__construct($context, $filter);
+        parent::__construct($context);
+        $this->filter = $filter;
         $this->collectionFactory = $collectionFactory;
+        $this->orderRepository = $orderRepository;
     }
 
     /**
      * Delete selected orders
      *
-     * @param AbstractCollection $collection
-     * @return \Magento\Backend\Model\View\Result\Redirect
+     * @return \Magento\Framework\App\ResponseInterface|\Magento\Framework\Controller\ResultInterface
+     * @throws \Magento\Framework\Exception\LocalizedException
      */
-    protected function massAction(AbstractCollection $collection)
+    public function execute()
     {
+        $collection = $this->filter->getCollection($this->collectionFactory->create());
         $countDeleteOrder = 0;
-        $countNonDeleteOrder = 0;
+        /** @var \Magento\Sales\Model\Order $order */
         foreach ($collection->getItems() as $order) {
-            try{
-                $order->delete();
-                $countDeleteOrder++;
-            } catch (\Exception $e) {
-                $this->messageManager->addErrorMessage(__($e->getMessage()));
-                $countNonDeleteOrder++;
-            }
+            $this->orderRepository->delete($order);
+            $countDeleteOrder++;
         }
+        $this->messageManager->addSuccessMessage(
+            __('A total of %1 order(s) were deleted.', $countDeleteOrder)
+        );
 
-        if ($countNonDeleteOrder && $countDeleteOrder) {
-            $this->messageManager->addErrorMessage(__('%1 order(s) cannot be deleted.', $countNonDeleteOrder));
-        } elseif ($countNonDeleteOrder) {
-            $this->messageManager->addErrorMessage(__('You cannot delete the order(s).'));
-        }
-
-        if ($countDeleteOrder) {
-            $this->messageManager->addSuccessMessage(__('We deleted %1 order(s).', $countDeleteOrder));
-        }
-        $resultRedirect = $this->resultRedirectFactory->create();
-        $resultRedirect->setPath($this->getComponentRefererUrl());
-        return $resultRedirect;
+        return $this->resultFactory->create(ResultFactory::TYPE_REDIRECT)->setPath('sales/*/');
     }
 }

@@ -1,17 +1,5 @@
 <?php
-/**
- * NOTICE OF LICENSE
- *
- * This source file is subject to the Open Software License (OSL 3.0)
- * that is bundled with this package in the file LICENSE.txt.
- * It is also available through the world-wide-web at this URL:
- * http://opensource.org/licenses/osl-3.0.php
- *
- * @category   Kuzman
- * @package    Kuzman_DeleteOrders
- * @license    http://opensource.org/licenses/osl-3.0.php  Open Software License (OSL 3.0)
- * @author     Vladan Kuzmanovic (vladan.kuzman@gmail.com)
- */
+
 namespace Kuzman\DeleteOrders\Test\Unit\Controller\Adminhtml\Order;
 
 use Magento\Framework\App\Action\Context;
@@ -93,6 +81,11 @@ class MassDeleteTest extends \PHPUnit\Framework\TestCase
      */
     protected $filterMock;
 
+    /**
+     * @var \Magento\Sales\Api\OrderRepositoryInterface|\PHPUnit_Framework_MockObject_MockObject
+     */
+    protected $orderRepositoryMock;
+
     protected function setUp()
     {
         $objectManagerHelper = new ObjectManagerHelper($this);
@@ -153,12 +146,15 @@ class MassDeleteTest extends \PHPUnit\Framework\TestCase
         $this->orderCollectionFactoryMock->expects($this->once())
             ->method('create')
             ->willReturn($this->orderCollectionMock);
+        $this->orderRepositoryMock = $this->getMockBuilder(\Magento\Sales\Api\OrderRepositoryInterface::class)
+            ->getMockForAbstractClass();
         $this->massAction = $objectManagerHelper->getObject(
             \Kuzman\DeleteOrders\Controller\Adminhtml\Order\MassDelete::class,
             [
                 'context' => $this->contextMock,
                 'filter' => $this->filterMock,
-                'collectionFactory' => $this->orderCollectionFactoryMock
+                'collectionFactory' => $this->orderCollectionFactoryMock,
+                'orderRepository' => $this->orderRepositoryMock
             ]
         );
     }
@@ -177,19 +173,11 @@ class MassDeleteTest extends \PHPUnit\Framework\TestCase
             ->method('getItems')
             ->willReturn($orders);
 
-        $order1->expects($this->once())
-            ->method('delete');
-
-        $order2->expects($this->once())
-            ->method('delete');
-
         $this->messageManagerMock->expects($this->once())
             ->method('addSuccessMessage')
-            ->with('We deleted 2 order(s).');
+            ->with(__('A total of %1 order(s) were deleted.', count($orders)));
 
-        $this->messageManagerMock->expects($this->never())->method('addErrorMessage');
-
-        $this->resultRedirectMock->expects($this->once())
+        $this->resultRedirectMock->expects($this->any())
             ->method('setPath')
             ->with('sales/*/')
             ->willReturnSelf();
